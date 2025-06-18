@@ -35,14 +35,17 @@ kaplay({
 
 loadRoot("./"); // A good idea for Itch.io publishing later
 loadSprite("mark", "src/sprites/mark.png");
+loadSprite("bean", "src/sprites/bean.png");
 loadSprite("sword", "src/sprites/sword.png");
+loadSprite("lightening", "src/sprites/lightening.png");
+loadSprite("cloud", "src/sprites/cloud.png");
 loadBitmapFont("happy", "src/sprites/happy-o.png", 36, 48);
 
 const SCALE = (width() * 0.05) / 100;
 
 scene("play", () => {
-  const player = generatePlayer.mark({ SCALE });
-  player.spawnHeldSword();
+  const player = generatePlayer.bean({ SCALE });
+  if (player.sprite == 'mark') player.spawnHeldSword();
 
   player.animate(
     "scale",

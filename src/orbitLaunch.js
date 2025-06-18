@@ -1,4 +1,4 @@
-function orbitAndLaunch(player, initialAngle, radius, duration = 1) {
+function orbitAndLaunch(anchor, initialAngle, radius, duration = 1) {
   let angle = initialAngle; // in degrees
   let timer = 0;
 
@@ -11,7 +11,7 @@ function orbitAndLaunch(player, initialAngle, radius, duration = 1) {
 
       const rad = angle * (Math.PI / 180);
       const offset = vec2(Math.cos(rad), Math.sin(rad)).scale(radius*this.scale.x);
-      this.pos = player.pos.add(offset).add(15 * this.scale.x, 15 * this.scale.x);
+      this.pos = anchor.pos.add(offset);
       this.angle += 360 * dt();
 
       if (timer >= duration) {
