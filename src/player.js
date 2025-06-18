@@ -293,17 +293,12 @@ const generatePlayer = {
             "shieldEffect",
           ]);
 
-          shield.animate('opacity', [
-            0.4,
-            0.5,
-            0.4,
-            0.3
-          ], {
+          shield.animate("opacity", [0.4, 0.5, 0.4, 0.3], {
             duration: 1,
-            direction: 'ping-pong',
-            easing: easings.easeInCubic
-          })
-          
+            direction: "ping-pong",
+            easing: easings.easeInCubic,
+          });
+
           return shield;
         },
         activateUltimate: function () {
@@ -312,12 +307,14 @@ const generatePlayer = {
           const duration = 5;
 
           // Apply shield state
-          this.use(shadowTrail(0.01, [
-            rgb(65, 65, 176),
-            rgb(118, 51, 162),
-            rgb(149, 44, 152),
-            rgb(76, 33, 131),
-          ]))
+          this.use(
+            shadowTrail(0.01, [
+              rgb(65, 65, 176),
+              rgb(118, 51, 162),
+              rgb(149, 44, 152),
+              rgb(76, 33, 131),
+            ])
+          );
           this.shielded = true;
           this.speed *= boostAmount;
 
@@ -327,7 +324,7 @@ const generatePlayer = {
           // Cancel after duration
           wait(duration, () => {
             this.shielded = false;
-            this.unuse('shadowTrail')
+            this.unuse("shadowTrail");
             this.speed = originalSpeed;
             destroy(shield);
           });
@@ -338,6 +335,147 @@ const generatePlayer = {
             time() - this.lastPassiveTime >= this.passiveCD
           ) {
             this.activatePassive();
+          }
+        },
+      },
+    ]);
+  },
+  bag: function (opts = { SCALE: (width() * 0.05) / 100 }) {
+    return add([
+      sprite("bag"),
+      pos(center()),
+      scale(opts.SCALE),
+      anchor("center"),
+      area(),
+      body(),
+      animate(),
+      "player",
+      {
+        speed: 200,
+        xDir: 1,
+        yDir: 1,
+        cd: 1,
+        atkCD: 1,
+        atkSprite: "weight",
+        activePassive: false,
+        passive: "revenge-atk",
+        attack: function () {
+          const direction = mousePos().sub(this.pos).unit(); // Normalize to get direction
+          this.cd += dt();
+          if (this.cd >= this.atkCD) {
+            this.cd = 0;
+            add([
+              sprite(this.atkSprite),
+              pos(this.pos),
+              anchor("center"),
+              rotate(direction.angle() - 90),
+              scale(opts.SCALE),
+              area(),
+              move(direction, 600),
+              offscreen({ destroy: true }),
+              z(1),
+              "bullet",
+            ]);
+          }
+        },
+        createWave: function (waveCount = 3, options = {}) {
+          if (waveCount == 0) return;
+          const {
+            p = vec2(0, 0),
+            radius = opts.SCALE,
+            color = rgb(255, 255, 255),
+            scaleStart = 0.5,
+            scaleEnd = 2,
+            timeToLive = 1,
+          } = options;
+
+          const wave = add([
+            pos(p),
+            circle(radius, { fill: false }),
+            outline(opts.SCALE * 10, color),
+            opacity(0.25),
+            anchor("center"),
+            lifespan(timeToLive, {fade: timeToLive /2}),
+            scale(scaleStart),
+            z(10),
+            "wave",
+          ]);
+
+          tween(
+            wave.scale,
+            vec2(scaleEnd),
+            timeToLive ,
+            (val) => (wave.scale = val),
+            easings.easeOutBack
+          );
+
+          wait(timeToLive/2, () =>
+            this.createWave(waveCount - 1, {
+              ...options,
+              scaleStart: scaleStart / 2,
+              scaleEnd: scaleEnd / 1.5,
+              timeToLive: timeToLive,
+            })
+          );
+        },
+        dropWeight(targetPos, options = {}) {
+          const {
+            spriteName = "weight",
+            speed = 1000,
+          } = options;
+
+          const spawnPos = vec2(targetPos.x, 25);
+
+          const w = add([
+            pos(spawnPos),
+            sprite(spriteName),
+            anchor("center"),
+            scale(2),
+            area(),
+            move(vec2(0, 1), speed),
+            z(20),
+            "fallingWeight",
+          ]);
+
+          w.onUpdate(() => {
+            if (w.pos.y >= targetPos.y) {
+              w.moveTo(targetPos);
+              shake(5);
+              destroy(w);
+              this.createWave(3, {
+                p: targetPos,
+                radius: opts.SCALE * 100,
+                color: rgb(115, 106, 126),
+                scaleStart: 1,
+                scaleEnd: 2,
+                timeToLive: 0.5,
+              });
+            }
+          });
+        },
+        activateSpecial: function () {
+          const player = get("player")[0];
+          if (!player) return;
+
+          const spriteName = "weight";
+          const fallHeight = 200;
+          const speed = 900;
+          const delayBetween = 0.1;
+
+          const dir = mousePos().sub(player.pos);
+          const totalDistance = dir.len();
+          const step = dir.unit().scale(totalDistance / 3); // divide into 3 equal parts
+
+          for (let i = 1; i <= 3; i++) {
+            const targetPos = player.pos.add(step.scale(i));
+
+            wait((i - 1) * delayBetween, () => {
+              this.dropWeight(targetPos, {
+                spriteName,
+                fallHeight,
+                speed,
+              });
+            });
           }
         },
       },
