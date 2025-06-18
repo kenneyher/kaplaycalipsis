@@ -15,6 +15,15 @@ const generatePlayer = {
       animate(),
       "player",
       {
+        type: "hero",
+        health: 100,
+        pd: 40,
+        mg: 10,
+        specialCost: 40,
+        ultimateCost: 80,
+        heroism: 0,
+        heroismPercentage: 0.15,
+        maxEnergy: 100,
         speed: 200,
         xDir: 1,
         yDir: 1,
@@ -42,6 +51,7 @@ const generatePlayer = {
             this.activePassive = true;
             // Optional: visual/sound feedback
             debug.log("Passive activated!");
+            this.pd *= 2;
           }
         },
         createSword: function (direction, xcomps = []) {
@@ -75,6 +85,7 @@ const generatePlayer = {
           }
         },
         activateSpecial: function () {
+          this.heroism -= this.specialCost;
           const angles = [...Array(12).keys()].map((i) => i * 30); // [0, 30, ..., 330]
           const swords = [];
           let index = 0;
@@ -99,8 +110,7 @@ const generatePlayer = {
             const angle = angles[index];
             const dir = angleToVec(angle);
             const posOffset = dir
-              .scale(100 * opts.SCALE)
-              .add(25 * opts.SCALE, 20 * opts.SCALE); // small radius around player
+              .scale(100 * opts.SCALE); // small radius around player
 
             const sword = add([
               pos(player.pos.add(posOffset)),
@@ -126,6 +136,7 @@ const generatePlayer = {
           summonNextSword();
         },
         activateUltimate: function () {
+          this.heroism -= this.ultimateCost;
           const player = get("player")[0];
           const radius = 100 * opts.SCALE;
           const baseScale = opts.SCALE * 1.5;
@@ -165,6 +176,15 @@ const generatePlayer = {
       animate(),
       "player",
       {
+        type: "arcanist",
+        health: 80,
+        pd: 10,
+        md: 40,
+        mana: 0,
+        specialCost: 45,
+        ultimateCost: 50,
+        manaRegen: 5,
+        maxEnergy: 100,
         speed: 300,
         xDir: 1,
         yDir: 1,
@@ -233,6 +253,7 @@ const generatePlayer = {
           }
         },
         activateSpecial: async function () {
+          this.mana -= this.specialCost;
           const dashSpeed = 1200;
           const angleOffsets = [45, 225];
           const lightnings = [];
@@ -302,6 +323,7 @@ const generatePlayer = {
           return shield;
         },
         activateUltimate: function () {
+          this.mana -= this.ultimateCost;
           const originalSpeed = this.speed;
           const boostAmount = 2.5;
           const duration = 5;
@@ -336,6 +358,10 @@ const generatePlayer = {
           ) {
             this.activatePassive();
           }
+
+          if (this.mana < this.maxEnergy) {
+            this.mana += this.manaRegen * dt();
+          }
         },
       },
     ]);
@@ -349,13 +375,24 @@ const generatePlayer = {
       area(),
       body(),
       animate(),
+      z(0),
       "player",
       {
-        speed: 200,
+        type: "protector",
+        health: 200,
+        pd: 20,
+        mp: 20,
+        specialCost: 50,
+        ultimateCost: 50,
+        resistance: 0,
+        maxEnergy: 100,
+        resistanceRegen: 20,
+        moving: false,
+        speed: 100,
         xDir: 1,
         yDir: 1,
-        cd: 1,
-        atkCD: 1,
+        cd: 0.75,
+        atkCD: 0.75,
         atkSprite: "weight",
         activePassive: false,
         passive: "revenge-atk",
@@ -395,7 +432,7 @@ const generatePlayer = {
             outline(opts.SCALE * 10, color),
             opacity(0.25),
             anchor("center"),
-            lifespan(timeToLive, {fade: timeToLive /2}),
+            lifespan(timeToLive, { fade: timeToLive / 2 }),
             scale(scaleStart),
             z(10),
             "wave",
@@ -404,12 +441,12 @@ const generatePlayer = {
           tween(
             wave.scale,
             vec2(scaleEnd),
-            timeToLive ,
+            timeToLive,
             (val) => (wave.scale = val),
             easings.easeOutBack
           );
 
-          wait(timeToLive/2, () =>
+          wait(timeToLive / 2, () =>
             this.createWave(waveCount - 1, {
               ...options,
               scaleStart: scaleStart / 2,
@@ -419,10 +456,7 @@ const generatePlayer = {
           );
         },
         dropWeight(targetPos, options = {}) {
-          const {
-            spriteName = "weight",
-            speed = 1000,
-          } = options;
+          const { spriteName = "weight", speed = 1000 } = options;
 
           const spawnPos = vec2(targetPos.x, 25);
 
@@ -445,7 +479,7 @@ const generatePlayer = {
               this.createWave(3, {
                 p: targetPos,
                 radius: opts.SCALE * 100,
-                color: rgb(115, 106, 126),
+                color: rgb(137, 124, 155),
                 scaleStart: 1,
                 scaleEnd: 2,
                 timeToLive: 0.5,
@@ -454,6 +488,7 @@ const generatePlayer = {
           });
         },
         activateSpecial: function () {
+          this.resistance -= this.specialCost;
           const player = get("player")[0];
           if (!player) return;
 
@@ -476,6 +511,105 @@ const generatePlayer = {
                 speed,
               });
             });
+          }
+        },
+        activateUltimate: function () {
+          this.resistance -= this.specialCost;
+          const shields = [];
+          const angles = [30, 60, 90];
+          const timeToLive = 5;
+          const prevSpeed = this.speed;
+
+          for (let i = 0; i < 3; i++) {
+            shields.push(
+              add([
+                pos(this.pos),
+                rect(this.width, this.width, {
+                  fill: false,
+                }),
+                opacity(1),
+                animate(),
+                area(),
+                outline(opts.SCALE, rgb(255, 255, 255), 1),
+                rotate(angles[i]),
+                lifespan(timeToLive),
+                anchor("center"),
+                scale(opts.SCALE * 2),
+                z(0),
+                follow(this),
+                "block",
+              ])
+            );
+          }
+
+          this.use(
+            shadowTrail(0.001, [
+              rgb(152, 152, 199),
+              rgb(199, 145, 200),
+              rgb(200, 145, 155),
+              rgb(167, 145, 200),
+            ])
+          );
+          this.speed *= 5;
+
+          shields.forEach((s) => {
+            s.animate(
+              "scale",
+              [
+                s.scale,
+                s.scale.add(0.5, 0.5),
+                s.scale,
+                s.scale.sub(0.5, 0.5),
+                s.scale,
+              ],
+              {
+                duration: 1,
+                direction: "forward",
+                easing: easings.linear,
+              }
+            );
+            tween(
+              1,
+              0.25,
+              timeToLive,
+              (val) => (s.opacity = val),
+              easings.easeInExpo
+            );
+
+            s.onUpdate(() => {
+              s.angle += 360 * dt();
+            });
+          });
+
+          wait(timeToLive, () => {
+            this.unuse("shadowTrail");
+            this.speed = 0;
+            shake(25);
+            this.createWave(5, {
+              p: this.pos,
+              radius: opts.SCALE * 200,
+              color: rgb(152, 107, 145),
+              scaleStart: 1,
+              scaleEnd: 2,
+              timeToLive: 0.25,
+            });
+            wait(0.5, () => (this.speed = prevSpeed));
+          });
+        },
+        update() {
+          debug.log(this.moving, this.resistance)
+          if (!this.moving) {
+            this.stillTimer += dt();
+
+            // Regenerate progressively, scaled by delta time
+            if (this.resistance < this.maxEnergy) {
+              this.resistance += this.resistanceRegen * dt();
+              if (this.resistance > this.maxEnergy) {
+                this.resistance = this.maxEnergy;
+              }
+            }
+          } else {
+            this.stillTimer = 0;
           }
         },
       },

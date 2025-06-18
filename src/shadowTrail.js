@@ -42,7 +42,7 @@ function shadowTrail(delay = 0.05, colors = []) {
           scale(this.scale),
           anchor("center"),
           color(cloneColor.r, cloneColor.g, cloneColor.b),
-          z(0),
+          z(-1),
           {
             id: "fadeAndDie",
             require: ["color"],

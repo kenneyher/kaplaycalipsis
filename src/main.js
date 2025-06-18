@@ -2,32 +2,29 @@ import kaplay from "kaplay";
 import "kaplay/global";
 import shadowTrail from "./shadowTrail";
 import generatePlayer from "./player";
+import { sufficientResources } from "./helpers";
+import createBar from "./createBar";
 
 kaplay({
   buttons: {
-    "up": {
-      keyboard: ['w']
+    up: {
+      keyboard: ["w"],
     },
-    "down": 
-    {
-      keyboard: ['s']
+    down: {
+      keyboard: ["s"],
     },
-    "left":
-    {
-      keyboard: ['a']
+    left: {
+      keyboard: ["a"],
     },
-    "right":
-    {
-      keyboard: ['d']
+    right: {
+      keyboard: ["d"],
     },
-    "special":
-    {
-      keyboard: ['q']
+    special: {
+      keyboard: ["q"],
     },
-    "special2":
-    {
-      keyboard: ['e']
-    }
+    special2: {
+      keyboard: ["e"],
+    },
   },
   background: [0, 0, 10],
   crisp: true,
@@ -47,7 +44,38 @@ const SCALE = (width() * 0.05) / 100;
 
 scene("play", () => {
   const player = generatePlayer.bag({ SCALE });
-  if (player.sprite == 'mark') player.spawnHeldSword();
+  if (player.sprite == "mark") player.spawnHeldSword();
+
+  const healthbar = createBar(
+    player.health,
+    GREEN,
+    width()* 0.25,
+    20,
+    SCALE,
+    vec2(25 * SCALE, 25 * SCALE)
+  );
+  const energyType =
+    player.type == "hero"
+      ? "heroism"
+      : player.type == "arcanist"
+      ? "mana"
+      : "resistance";
+  const energybar = createBar(
+    player.maxEnergy,
+    CYAN,
+    healthbar.width,
+    10,
+    SCALE,
+    vec2(25 * SCALE, 50 * SCALE)
+  );
+
+  add([
+    rect(100, 100),
+    color(RED),
+    pos(randi(100, width() - 100), randi(100, height() - 100)),
+    area(),
+    "decoy",
+  ]);
 
   player.animate(
     "scale",
@@ -73,16 +101,36 @@ scene("play", () => {
   };
   for (const dir in DIRS) {
     onButtonDown(dir, () => {
+      if (player.type == "protector") player.moving = true;
       player.move(DIRS[dir].scale(player.speed));
+    });
+    onButtonRelease(dir, () => {
+      player.moving = false;
     });
   }
 
-  onKeyPress('q', () => {
+  onKeyPress("q", () => {
+    if (!sufficientResources(player, player.specialCost)) {
+      return;
+    }
     player.activateSpecial();
-  })
-  onKeyPress('e', () => {
-    player.activateUltimate()
-  })
+  });
+  onKeyPress("e", () => {
+    if (!sufficientResources(player, player.ultimateCost)) {
+      return;
+    }
+    player.activateUltimate();
+  });
+
+  onCollide("decoy", "bullet", (d, b) => {
+    if (player.type == "hero") {
+      player.heroism = Math.min(
+        player.heroism + player.heroismPercentage * player.pd,
+        player.maxEnergy
+      );
+    }
+    b.destroy();
+  });
 
   let cd = player.atkCD;
   onMouseDown(async () => {
@@ -91,6 +139,10 @@ scene("play", () => {
 
   onUpdate("sword", (s) => {
     s.angle = mousePos().sub(player.pos).unit().angle() + 90;
+  });
+
+  player.onUpdate(() => {
+    energybar.set(player[energyType]);
   });
 });
 

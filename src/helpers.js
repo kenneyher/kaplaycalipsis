@@ -3,4 +3,15 @@ function angleToVec(angleDegrees) {
   return vec2(Math.cos(angleRadians), Math.sin(angleRadians));
 }
 
-export { angleToVec };
+function sufficientResources(player, cost) {
+  switch (player.type) {
+    case 'hero':
+      return player.heroism >= cost;
+    case 'arcanist':
+      return player.mana >= cost;
+    case 'protector':
+      return player.resistance >= cost;
+  }
+}
+
+export { angleToVec , sufficientResources };
